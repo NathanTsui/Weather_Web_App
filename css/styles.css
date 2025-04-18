@@ -1,0 +1,24 @@
+/* Additional custom styles */
+.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+#suggestions {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Map container styles */
+#map {
+    height: 300px;
+    width: 100%;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+}
+
+/* Smooth theme transition */
+* {
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+} 
