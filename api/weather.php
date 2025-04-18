@@ -12,58 +12,25 @@ error_reporting(E_ALL);
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $openweather_api_key = getenv('OPENWEATHER_API_KEY');
 
-if ($action === 'proxy_tile') {
-    // Handle tile proxy request
-    $layer = isset($_GET['layer']) ? $_GET['layer'] : 'clouds_new';
-    $z = isset($_GET['z']) ? (int)$_GET['z'] : 0;
-    $x = isset($_GET['x']) ? (int)$_GET['x'] : 0;
-    $y = isset($_GET['y']) ? (int)$_GET['y'] : 0;
-
+if ($action === 'get_api_key') {
     if (!$openweather_api_key) {
         error_log("OpenWeatherMap API key not configured");
         http_response_code(500);
-        header('Content-Type: application/json');
         echo json_encode(['error' => 'OpenWeatherMap API key not configured']);
         exit;
     }
-
-    $url = "https://tile.openweathermap.org/map/{$layer}/{$z}/{$x}/{$y}.png?appid={$openweather_api_key}";
-    error_log("Fetching tile: $url");
-    header('Content-Type: image/png');
-
-    // Use cURL for reliable fetching
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Disable for testing (enable in production)
-    $response = curl_exec($ch);
-
-    if ($response === false) {
-        $error = curl_error($ch);
-        error_log("Tile proxy request failed: $error");
-        http_response_code(500);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Failed to fetch tile: ' . $error]);
-        curl_close($ch);
-        exit;
-    }
-
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($http_code !== 200) {
-        error_log("Tile request failed with HTTP code: $http_code");
-        http_response_code($http_code);
-        header('Content-Type: application/json');
-        echo json_encode(['error' => 'Tile request failed with HTTP code: ' . $http_code]);
-        exit;
-    }
-
-    echo $response;
+    echo json_encode(['apiKey' => $openweather_api_key]);
     exit;
 }
+
+// Existing weather.php code continues here...
+$city = isset($_GET['city']) ? trim($_GET['city']) : '';
+$units = isset($_GET['units']) ? $_GET['units'] : 'metric';
+$lang = isset($_GET['lang']) ? $_GET['lang'] : 'en';
+$exclude = isset($_GET['exclude']) ? $_GET['exclude'] : '';
+$date = isset($_GET['date']) ? $_GET['date'] : null;
+$ai_summary = isset($_GET['ai_summary']) && $_GET['ai_summary'] === 'true';
+$day_data = isset($_GET['day_data']) ? json_decode(urldecode($_GET['day_data']), true) : null;
 
 
 // Get query parameters

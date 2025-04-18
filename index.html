@@ -539,78 +539,103 @@
         };
 
 
-        // Initialize map and weather layers
+        // Initialize map
         const map = L.map('map').setView([0, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Add weather layers with proxy
-        const weatherLayers = {
-            clouds: L.tileLayer('/api/weather.php?action=proxy_tile&layer=clouds_new&z={z}&x={x}&y={y}', {
-                attribution: '© OpenWeatherMap',
-                opacity: 0.7
-            }),
-            precipitation: L.tileLayer('/api/weather.php?action=proxy_tile&layer=precipitation_new&z={z}&x={x}&y={y}', {
-                attribution: '© OpenWeatherMap',
-                opacity: 0.7
-            }),
-            pressure: L.tileLayer('/api/weather.php?action=proxy_tile&layer=pressure_new&z={z}&x={x}&y={y}', {
-                attribution: '© OpenWeatherMap',
-                opacity: 0.7
-            }),
-            wind: L.tileLayer('/api/weather.php?action=proxy_tile&layer=wind_new&z={z}&x={x}&y={y}', {
-                attribution: '© OpenWeatherMap',
-                opacity: 0.7
-            }),
-            temperature: L.tileLayer('/api/weather.php?action=proxy_tile&layer=temp_new&z={z}&x={x}&y={y}', {
-                attribution: '© OpenWeatherMap',
-                opacity: 0.7
-            })
-        };
-
-        // Function to update weather layers with animation
-        function updateWeatherLayer(selectedLayer) {
-            Object.values(weatherLayers).forEach(layer => {
-                if (layer && map.hasLayer(layer)) {
-                    map.removeLayer(layer);
-                }
-            });
-            if (weatherLayers[selectedLayer]) {
-                weatherLayers[selectedLayer].setOpacity(0);
-                weatherLayers[selectedLayer].addTo(map);
-                let opacity = 0;
-                const fadeIn = setInterval(() => {
-                    opacity += 0.1;
-                    if (opacity >= 0.7) {
-                        opacity = 0.7;
-                        clearInterval(fadeIn);
-                    }
-                    weatherLayers[selectedLayer].setOpacity(opacity);
-                }, 50);
+        // Function to fetch API key
+        async function fetchApiKey() {
+            try {
+                const response = await fetch('/api/weather.php?action=get_api_key');
+                if (!response.ok) throw new Error('Failed to fetch API key');
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                return data.apiKey;
+            } catch (error) {
+                console.error('Error fetching API key:', error);
+                return null;
             }
         }
 
-        // Auto-refresh weather data every minute
-        let currentLayer = 'clouds';
-        function autoRefreshWeather() {
-            const weatherLayerSelect = document.getElementById('weatherLayerSelect');
-            currentLayer = weatherLayerSelect.value;
-            const currentUrl = weatherLayers[currentLayer]._url;
-            const timestamp = new Date().getTime();
-            weatherLayers[currentLayer]._url = currentUrl.split('&_=')[0] + `&_=${timestamp}`;
-            updateWeatherLayer(currentLayer);
+        // Initialize weather layers with dynamic API key
+        async function initializeWeatherLayers() {
+            const apiKey = await fetchApiKey();
+            if (!apiKey) {
+                console.error('No API key available, cannot initialize weather layers');
+                return;
+            }
+
+            const weatherLayers = {
+                clouds: L.tileLayer(`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${apiKey}`, {
+                    attribution: '© OpenWeatherMap',
+                    opacity: 0.7
+                }),
+                precipitation: L.tileLayer(`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${apiKey}`, {
+                    attribution: '© OpenWeatherMap',
+                    opacity: 0.7
+                }),
+                pressure: L.tileLayer(`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${apiKey}`, {
+                    attribution: '© OpenWeatherMap',
+                    opacity: 0.7
+                }),
+                wind: L.tileLayer(`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${apiKey}`, {
+                    attribution: '© OpenWeatherMap',
+                    opacity: 0.7
+                }),
+                temperature: L.tileLayer(`https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${apiKey}`, {
+                    attribution: '© OpenWeatherMap',
+                    opacity: 0.7
+                })
+            };
+
+            // Function to update weather layers with animation
+            function updateWeatherLayer(selectedLayer) {
+                Object.values(weatherLayers).forEach(layer => {
+                    if (layer && map.hasLayer(layer)) {
+                        map.removeLayer(layer);
+                    }
+                });
+                if (weatherLayers[selectedLayer]) {
+                    weatherLayers[selectedLayer].setOpacity(0);
+                    weatherLayers[selectedLayer].addTo(map);
+                    let opacity = 0;
+                    const fadeIn = setInterval(() => {
+                        opacity += 0.1;
+                        if (opacity >= 0.7) {
+                            opacity = 0.7;
+                            clearInterval(fadeIn);
+                        }
+                        weatherLayers[selectedLayer].setOpacity(opacity);
+                    }, 50);
+                }
+            }
+
+            // Auto-refresh weather data every minute
+            let currentLayer = 'clouds';
+            function autoRefreshWeather() {
+                const weatherLayerSelect = document.getElementById('weatherLayerSelect');
+                currentLayer = weatherLayerSelect.value;
+                const currentUrl = weatherLayers[currentLayer]._url;
+                const timestamp = new Date().getTime();
+                weatherLayers[currentLayer]._url = currentUrl.split('?')[0] + `?appid=${apiKey}&_=${timestamp}`;
+                updateWeatherLayer(currentLayer);
+            }
+            setInterval(autoRefreshWeather, 60000);
+
+            // Add event listener for weather layer selection
+            document.getElementById('weatherLayerSelect').addEventListener('change', function () {
+                currentLayer = this.value;
+                updateWeatherLayer(currentLayer);
+            });
+
+            // Initialize with default layer
+            updateWeatherLayer('clouds');
         }
-        setInterval(autoRefreshWeather, 60000);
 
-        // Add event listener for weather layer selection
-        document.getElementById('weatherLayerSelect').addEventListener('change', function () {
-            currentLayer = this.value;
-            updateWeatherLayer(currentLayer);
-        });
-
-        // Initialize with default layer
-        updateWeatherLayer('clouds');
+        // Call the function to initialize layers
+        initializeWeatherLayers();
 
         let cityMarker = null;
 
